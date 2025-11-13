@@ -19,14 +19,6 @@ persistence:
   path: "matrixpulse_state.json"
   interval_seconds: 60
 
-websocket:
-  enabled: true
-  port: 8080
-
-rest:
-  enabled: true
-  port: 8081
-
 dashboard:
   refresh_ms: 200
   enabled: true

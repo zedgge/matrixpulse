@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 
 	"gopkg.in/yaml.v3"
@@ -12,8 +13,6 @@ type Config struct {
 	UpdateHz    int         `yaml:"update_hz"`
 	Alerts      Alerts      `yaml:"alerts"`
 	Persistence Persistence `yaml:"persistence"`
-	WebSocket   WebSocket   `yaml:"websocket"`
-	REST        REST        `yaml:"rest"`
 	Dashboard   Dashboard   `yaml:"dashboard"`
 }
 
@@ -29,23 +28,38 @@ type Persistence struct {
 	Interval int    `yaml:"interval_seconds"`
 }
 
-type WebSocket struct {
-	Enabled bool `yaml:"enabled"`
-	Port    int  `yaml:"port"`
-}
-
-type REST struct {
-	Enabled bool `yaml:"enabled"`
-	Port    int  `yaml:"port"`
-}
-
 type Dashboard struct {
 	RefreshMs int  `yaml:"refresh_ms"`
 	Enabled   bool `yaml:"enabled"`
 }
 
-func Load() *Config {
-	cfg := &Config{
+// Load reads configuration from config.yaml with fallback to defaults
+func Load() (*Config, error) {
+	cfg := defaultConfig()
+
+	data, err := os.ReadFile("config.yaml")
+	if err != nil {
+		if os.IsNotExist(err) {
+			// Config file doesn't exist, use defaults
+			return cfg, nil
+		}
+		return nil, fmt.Errorf("failed to read config file: %w", err)
+	}
+
+	if err := yaml.Unmarshal(data, cfg); err != nil {
+		return nil, fmt.Errorf("failed to parse config file: %w", err)
+	}
+
+	if err := cfg.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid configuration: %w", err)
+	}
+
+	return cfg, nil
+}
+
+// defaultConfig returns sensible defaults
+func defaultConfig() *Config {
+	return &Config{
 		Symbols:    []string{"AAPL", "GOOGL", "MSFT", "AMZN", "TSLA", "META"},
 		WindowSize: 120,
 		UpdateHz:   40,
@@ -59,16 +73,50 @@ func Load() *Config {
 			Path:     "matrixpulse_state.json",
 			Interval: 60,
 		},
-		WebSocket: WebSocket{Enabled: true, Port: 8080},
-		REST:      REST{Enabled: true, Port: 8081},
-		Dashboard: Dashboard{RefreshMs: 200, Enabled: true},
+		Dashboard: Dashboard{
+			RefreshMs: 200,
+			Enabled:   true,
+		},
+	}
+}
+
+// Validate checks configuration for errors
+func (c *Config) Validate() error {
+	if len(c.Symbols) == 0 {
+		return fmt.Errorf("must specify at least one symbol")
 	}
 
-	data, err := os.ReadFile("config.yaml")
-	if err != nil {
-		return cfg
+	if len(c.Symbols) > 100 {
+		return fmt.Errorf("too many symbols (max 100, got %d)", len(c.Symbols))
 	}
 
-	yaml.Unmarshal(data, cfg)
-	return cfg
+	if c.WindowSize < 10 {
+		return fmt.Errorf("window_size too small (min 10, got %d)", c.WindowSize)
+	}
+
+	if c.WindowSize > 10000 {
+		return fmt.Errorf("window_size too large (max 10000, got %d)", c.WindowSize)
+	}
+
+	if c.UpdateHz < 1 || c.UpdateHz > 1000 {
+		return fmt.Errorf("update_hz out of range (1-1000, got %d)", c.UpdateHz)
+	}
+
+	if c.Alerts.Correlation < 0 || c.Alerts.Correlation > 1 {
+		return fmt.Errorf("correlation_threshold must be 0-1 (got %.2f)", c.Alerts.Correlation)
+	}
+
+	if c.Alerts.Eigenvalue < 0 {
+		return fmt.Errorf("eigenvalue_threshold must be positive (got %.2f)", c.Alerts.Eigenvalue)
+	}
+
+	if c.Persistence.Interval < 1 {
+		return fmt.Errorf("persistence interval must be positive (got %d)", c.Persistence.Interval)
+	}
+
+	if c.Dashboard.RefreshMs < 50 || c.Dashboard.RefreshMs > 5000 {
+		return fmt.Errorf("dashboard refresh_ms out of range (50-5000, got %d)", c.Dashboard.RefreshMs)
+	}
+
+	return nil
 }
