@@ -1,0 +1,32 @@
+symbols:
+  - AAPL
+  - GOOGL
+  - MSFT
+  - AMZN
+  - TSLA
+  - META
+
+window_size: 120
+update_hz: 40
+
+alerts:
+  correlation_threshold: 0.82
+  eigenvalue_threshold: 2.8
+  volatility_threshold: 0.04
+
+persistence:
+  enabled: true
+  path: "/app/data/matrixpulse_state.json"
+  interval_seconds: 60
+
+websocket:
+  enabled: true
+  port: 8080
+
+rest:
+  enabled: true
+  port: 8081
+
+dashboard:
+  refresh_ms: 200
+  enabled: false
