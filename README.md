@@ -1,20 +1,18 @@
 # MatrixPulse
 
-**Real-time Financial Correlation Analytics Engine**
-
-MatrixPulse is a concurrent analytics system that computes rolling correlation matrices, eigenvalue decomposition, and market regime detection in real-time. Built for reliability and performance.
+**Real-time Financial Correlation Engine** — Desktop application for monitoring market correlations and detecting systemic risk through eigenvalue decomposition.
 
 ---
 
-## Features
+## What It Does
 
-- **Real-time Correlation Matrix** - Continuous computation of asset correlations
-- **Eigenvalue Analysis** - Market regime detection (Normal/Stressed/Crisis)
-- **Alert System** - Configurable thresholds for correlation spikes and eigenvalue anomalies
-- **Native GUI Dashboard** - Clean, responsive interface showing live metrics
-- **REST API** - JSON endpoints for external integration
-- **WebSocket Stream** - Live data feed for clients
-- **State Persistence** - Automatic snapshots for recovery
+MatrixPulse continuously computes rolling correlation matrices across multiple assets, performs eigenvalue analysis to detect market regimes (Normal/Stressed/Crisis), and alerts you to correlation spikes in real-time.
+
+**Built for education and exploration of:**
+- High-throughput data processing in Go
+- Concurrent analytics with goroutines
+- Real-time statistical computation
+- Native desktop GUI with Fyne
 
 ---
 
@@ -22,77 +20,88 @@ MatrixPulse is a concurrent analytics system that computes rolling correlation m
 
 ### Prerequisites
 
-- Go 1.21 or later
-- GCC (for Fyne GUI compilation)
+- **Go 1.21+**
+- **GCC** (for Fyne compilation)
 
-**Platform-specific requirements:**
-- **Linux**: `libgl1-mesa-dev xorg-dev`
-- **macOS**: Xcode command line tools
-- **Windows**: GCC via MinGW-w64
+**Platform-specific:**
+- **Linux**: `sudo apt-get install libgl1-mesa-dev xorg-dev`
+- **macOS**: `xcode-select --install`
+- **Windows**: Install MinGW-w64
 
-### Installation
+### Build & Run
 
 ```bash
-# Clone the repository
+# Clone
 git clone https://github.com/yourusername/matrixpulse.git
 cd matrixpulse
-
-# Install dependencies
-go mod download
 
 # Build
 make build
 
 # Run
-./bin/matrixpulse
+./matrixpulse
 ```
 
-### Docker (Alternative)
+A GUI window will open showing real-time correlation matrices, eigenvalue analysis, and market regime detection.
 
-```bash
-docker build -t matrixpulse .
-docker run -p 8080:8080 -p 8081:8081 matrixpulse
-```
+---
+
+## Features
+
+### Real-time Correlation Matrix
+- Computes Pearson correlations across all tracked symbols
+- Rolling window with configurable size (default: 120 points)
+- Sub-millisecond compute latency
+
+### Eigenvalue-Based Regime Detection
+- **🟢 NORMAL**: Diversified market, eigenvalues distributed
+- **🟡 STRESSED**: High condition number (>50), elevated correlation
+- **🔴 CRISIS**: Max eigenvalue exceeds threshold, systemic correlation
+
+### Alert System
+- Correlation spike detection (threshold: 0.82)
+- Crisis mode alerts (eigenvalue > 2.8)
+- Real-time notification panel
+
+### Native Desktop GUI
+- Live correlation matrix display (10×10 view)
+- Eigenvalue statistics
+- Alert feed with severity indicators
+- System status (uptime, FPS, symbol count)
+
+### State Persistence
+- Automatic snapshots every 60 seconds
+- JSON format for easy inspection
+- Recovery on restart
 
 ---
 
 ## Configuration
 
-Edit `config.yaml` to customize behavior:
+Edit `config.yaml`:
 
 ```yaml
 symbols:
   - AAPL
   - GOOGL
   - MSFT
-  - AMZN
-  - TSLA
-  - META
+  # Add your symbols
 
-window_size: 120        # Rolling window size (data points)
-update_hz: 40          # Computation frequency (per second)
+window_size: 120      # Rolling window size
+update_hz: 40         # Calculations per second
 
 alerts:
-  correlation_threshold: 0.82   # Alert when |correlation| exceeds
-  eigenvalue_threshold: 2.8     # Crisis mode trigger
-  volatility_threshold: 0.04    # Volatility spike alert
+  correlation_threshold: 0.82
+  eigenvalue_threshold: 2.8
 
 persistence:
   enabled: true
-  path: "state.json"
+  path: "matrixpulse_state.json"
   interval_seconds: 60
 
-websocket:
-  enabled: true
-  port: 8080
-
-rest:
-  enabled: true
-  port: 8081
-
 dashboard:
-  enabled: true
   refresh_ms: 200
+  enabled: true
 ```
 
 ---
@@ -101,218 +110,192 @@ dashboard:
 
 ### Concurrency Model
 
-MatrixPulse runs multiple coordinated goroutines:
+MatrixPulse runs coordinated goroutines:
 
-1. **Feed Loop** - Ingests market data ticks
-2. **Compute Loop** - Performs rolling calculations (40 Hz default)
-3. **Persistence Loop** - Saves state snapshots (60s default)
-4. **Server Loops** - REST and WebSocket interfaces
-5. **GUI Loop** - Updates dashboard display (200ms default)
+1. **Feed Loop** - Generates simulated market ticks (25ms interval)
+2. **Ingestion Loop** - Consumes ticks, updates rolling windows
+3. **Compute Loop** - Performs matrix calculations (40 Hz)
+4. **Persistence Loop** - Saves snapshots (60s interval)
+5. **GUI Loop** - Refreshes display (200ms interval)
 
-All loops are context-managed for clean shutdown.
+All loops use `context.Context` for graceful shutdown coordination.
 
 ### Data Flow
 
 ```
-Market Feed → Rolling Windows → Statistics → Correlation Matrix
-                                              ↓
-                                         Eigenvalue Analysis
-                                              ↓
-                                         Regime Detection
-                                              ↓
-                                    GUI / REST / WebSocket
+Simulated Feed → Rolling Windows → Log Returns → Covariance Matrix
+                                                       ↓
+                                                Correlation Matrix
+                                                       ↓
+                                              Eigen Decomposition
+                                                       ↓
+                                               Regime Detection
+                                                       ↓
+                                             GUI Display + Alerts
 ```
 
----
+### Statistical Methods
 
-## API Reference
-
-### REST Endpoints
-
-**GET /matrix**
-```json
-{
-  "Cor": [[1.0, 0.85, ...], ...],
-  "Symbols": ["AAPL", "GOOGL", ...],
-  "Time": "2025-01-15T10:30:00Z"
-}
-```
-
-**GET /mode**
-```json
-{
-  "Eigenvalues": [2.45, 1.32, ...],
-  "MaxEigen": 2.45,
-  "Condition": 8.5,
-  "Regime": "NORMAL",
-  "Time": "2025-01-15T10:30:00Z"
-}
-```
-
-**GET /alerts**
-```json
-[
-  {
-    "Level": "HIGH",
-    "Symbol": "AAPL-GOOGL",
-    "Message": "correlation spike",
-    "Value": 0.89,
-    "Threshold": 0.82,
-    "Time": "2025-01-15T10:30:00Z"
-  }
-]
-```
-
-**GET /health**
-```
-ok
-```
-
-### WebSocket
-
-Connect to `ws://localhost:8080/ws` to receive updates every second:
-
-```json
-{
-  "matrix": { ... },
-  "mode": { ... },
-  "alerts": [ ... ]
-}
-```
-
----
-
-## GUI Dashboard
-
-The native GUI displays:
-
-- **Market Regime** - Current state with color coding (🟢 Normal / 🟡 Stressed / 🔴 Crisis)
-- **Eigenvalue Stats** - Max eigenvalue, condition number, top 6 eigenvalues
-- **Correlation Matrix** - Live heatmap-style grid (top 10×10 symbols)
-- **Active Alerts** - Recent alerts with severity indicators
-
-### Controls
-
-- **Window close** triggers graceful shutdown of all systems
-- **Refresh rate** is configurable in `config.yaml`
+- **Returns**: Log returns `ln(Pt / Pt-1)`
+- **Correlation**: Pearson coefficient with Bessel correction
+- **Eigenvalues**: Gonum symmetric decomposition
+- **Condition Number**: λ_max / λ_min (matrix stability)
 
 ---
 
 ## Performance
 
-- **Latency**: Sub-millisecond tick-to-compute
-- **Throughput**: Handles 1000+ ticks/second per symbol
-- **Memory**: ~50MB baseline + (window_size × symbols × 8 bytes)
-- **CPU**: Scales with `GOMAXPROCS` (defaults to all cores)
+- **Latency**: <1ms tick-to-compute
+- **Throughput**: 1000+ ticks/sec/symbol
+- **Memory**: ~50MB + (window_size × symbols × 8 bytes)
+- **CPU**: Multi-core with `GOMAXPROCS`
 
-### Benchmarks
-
-6 symbols, 120-point window, 40 Hz:
+**Benchmarks** (6 symbols, 120-point window, 40 Hz):
 - Compute cycle: ~500μs
 - GUI update: ~2ms
-- REST response: <1ms
+
+---
+
+## Educational Goals
+
+This project demonstrates:
+
+✅ **Concurrent Processing**
+- Goroutine coordination with channels
+- Context-based cancellation
+- Race-free data sharing (RWMutex)
+
+✅ **Real-time Analytics**
+- Rolling window computation
+- Matrix operations with Gonum
+- Eigenvalue decomposition
+
+✅ **Native GUI Development**
+- Cross-platform desktop with Fyne
+- Live data visualization
+- Event-driven updates
+
+✅ **Production Patterns**
+- Configuration management (YAML)
+- Graceful shutdown
+- State persistence
+- Error handling
 
 ---
 
 ## Troubleshooting
 
-### GUI won't start
+### GUI Won't Start
 
-**Issue**: Missing graphics libraries
-
-**Linux**:
+**Linux:**
 ```bash
 sudo apt-get install libgl1-mesa-dev xorg-dev
 ```
 
-**macOS**:
+**macOS:**
 ```bash
 xcode-select --install
 ```
 
-### High CPU usage
+### High CPU Usage
 
-**Solution**: Reduce `update_hz` in config.yaml (try 20 Hz)
+Reduce computation frequency in `config.yaml`:
+```yaml
+update_hz: 20  # Down from 40
+```
 
-### Alerts flooding
+### Alert Flooding
 
-**Solution**: Increase thresholds in config.yaml:
+Increase thresholds:
 ```yaml
 alerts:
   correlation_threshold: 0.90
   eigenvalue_threshold: 3.5
 ```
 
-### State file corruption
-
-**Solution**: Delete `state.json` and restart (will recompute)
-
 ---
 
 ## Building from Source
 
-### Development Build
-
 ```bash
+# Development build with race detector
 make dev
-```
 
-### Production Build
-
-```bash
+# Production build
 make build
-```
 
-### Run Tests
-
-```bash
+# Run tests
 make test
-```
 
-### Clean Build Artifacts
-
-```bash
+# Clean artifacts
 make clean
 ```
 
 ---
 
+## Project Structure
+
+```
+matrixpulse/
+├── cmd/matrixpulse/main.go    # Entry point
+├── internal/
+│   ├── config/                # YAML configuration
+│   ├── display/               # Fyne GUI
+│   ├── engine/                # Correlation engine
+│   ├── feed/                  # Simulated data feed
+│   ├── math/                  # Statistical functions
+│   ├── persist/               # State snapshots
+│   ├── types/                 # Core data types
+│   └── window/                # Rolling window
+├── config.yaml                # Configuration
+├── Makefile                   # Build system
+└── README.md
+```
+
+---
+
+## Technical Notes
+
+### Why Go?
+
+- Native concurrency (goroutines + channels)
+- Excellent performance for numerical workloads
+- Strong standard library
+- Cross-platform compilation
+- Fast build times
+
+### Why Fyne for GUI?
+
+- True native desktop (no web browser)
+- Cross-platform (Windows, macOS, Linux)
+- Clean API
+- Active development
+
+### Data Source
+
+Currently uses a **simulated feed** with synthetic price movements. Designed for easy replacement with live exchange APIs (Alpaca, Polygon, Binance, etc.).
+
+---
+
 ## License
 
-MIT License - See LICENSE file
+MIT License — Free for personal, academic, and commercial use.
 
 ---
 
-## Technical Details
+## Author's Note
 
-### Statistical Methods
+MatrixPulse was built to explore high-performance concurrent analytics in Go. It prioritizes **clarity, performance, and reliability** over unnecessary complexity.
 
-- **Returns**: Log returns computed as `ln(Pt / Pt-1)`
-- **Correlation**: Pearson correlation coefficient
-- **Covariance**: Unbiased estimator with Bessel's correction
-- **Eigenvalues**: Computed via Gonum's symmetric eigenvalue decomposition
+The focus is on demonstrating real-time data processing patterns that can scale to production workloads while remaining understandable and maintainable.
 
-### Market Regimes
-
-- **NORMAL**: MaxEigen < threshold, Condition < 50
-- **STRESSED**: Condition > 50
-- **CRISIS**: MaxEigen > threshold (default 2.8)
-
-Condition number = λ_max / λ_min measures matrix stability.
+**Key Learning Areas:**
+- Goroutine-based concurrent architecture
+- Real-time statistical computation
+- Matrix operations and eigenvalue analysis
+- Native desktop GUI development
+- Production-ready error handling and shutdown
 
 ---
 
-## Support
-
-For issues, questions, or contributions:
-- GitHub Issues: https://github.com/yourusername/matrixpulse/issues
-- Documentation: https://matrixpulse.dev/docs
-
----
-
-## Acknowledgments
-
-Built with:
-- [Fyne](https://fyne.io) - Native GUI toolkit
-- [Gonum](https://gonum.org) - Numerical computing
-- [Gorilla WebSocket](https://github.com/gorilla/websocket) - WebSocket implementation
+**Questions?** Open an issue on GitHub.

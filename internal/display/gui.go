@@ -11,7 +11,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -49,7 +48,7 @@ func (g *GUI) Run() {
 	g.window.SetContent(content)
 	g.window.Resize(fyne.NewSize(1200, 800))
 	g.window.CenterOnScreen()
-	
+
 	g.window.SetOnClosed(func() {
 		g.cancel()
 	})
@@ -303,7 +302,7 @@ func (g *GUI) updateStats(fps float64, uptime time.Duration) {
 	mode := g.eng.Mode()
 	alerts := g.eng.Alerts()
 
-	var symbolCount, dataPoints int
+	var symbolCount int
 	if mat != nil {
 		symbolCount = len(mat.Symbols)
 	}

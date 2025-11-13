@@ -4,7 +4,6 @@ go 1.21
 
 require (
 	fyne.io/fyne/v2 v2.4.5
-	github.com/gorilla/websocket v1.5.1
 	gonum.org/v1/gonum v0.14.0
 	gopkg.in/yaml.v3 v3.0.1
 )
