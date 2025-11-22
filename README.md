@@ -32,7 +32,7 @@ MatrixPulse continuously computes rolling correlation matrices across multiple a
 
 ```bash
 # Clone
-git clone https://github.com/yourusername/matrixpulse.git
+git clone https://github.com/zedgge/matrixpulse.git
 cd matrixpulse
 
 # Build
